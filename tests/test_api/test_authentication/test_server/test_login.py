@@ -23,7 +23,7 @@ class LoginRouteNameMixin:
     route_name: ClassVar[str] = 'auth:login'
 
 
-class TestLoginRoute(
+class TestLoginRouteSingleCase(
     LoginRouteNameMixin,
     BaseTestAuthRouteCase
 ):
