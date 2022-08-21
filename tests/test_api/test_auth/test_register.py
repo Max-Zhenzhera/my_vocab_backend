@@ -5,6 +5,7 @@ Cleanup:
     - cleanup_redis
     - cleanup_db
 """
+
 import pytest
 from fastapi import FastAPI
 from fastapi_mail import FastMail
