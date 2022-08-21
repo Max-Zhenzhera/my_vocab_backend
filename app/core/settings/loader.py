@@ -7,8 +7,8 @@ from dotenv import (
 )
 
 from .environment import (
-    AppEnvType,
-    ENV_FILES
+    ENV_FILES,
+    AppEnvType
 )
 
 
@@ -17,7 +17,6 @@ __all__ = [
     'load_app_environment'
 ]
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +24,7 @@ def recognize_app_environment_type() -> AppEnvType:
     load_dotenv()
     app_env = environ['APP_ENV']
     try:
-        env_type = AppEnvType(app_env.casefold())
+        env_type = AppEnvType(app_env.lower())
     except ValueError as error:
         env_types = ''.join(
             f'\n\t - {env_type!r}' for env_type in AppEnvType

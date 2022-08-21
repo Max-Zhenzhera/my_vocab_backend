@@ -45,6 +45,16 @@ RUN pipenv install --dev --system --deploy
 
 FROM pre-test as test
 
+ARG GROUP
+ARG USER
+ARG WORKDIR
+
 COPY . .
+
+RUN groupadd --system ${GROUP}
+RUN useradd --no-create-home --group ${GROUP} ${USER}
+RUN chown -R ${USER}:${GROUP} ${WORKDIR}
+
+USER ${USER}
 
 CMD ["pytest"]

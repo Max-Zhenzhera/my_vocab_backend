@@ -1,12 +1,10 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
-    Enum,
-    ForeignKey,
     String,
+    UniqueConstraint,
     false
 )
 from sqlalchemy.orm import (
@@ -15,56 +13,54 @@ from sqlalchemy.orm import (
 )
 
 from ..base import Base
-from ..mixins import TimestampMixin
-from ...constants import CASCADE
-from ...enums import Language
+from ..mixins import (
+    IDMixin,
+    TimestampMixin
+)
+from ..mixins.user import UserMixin
 
 
 if TYPE_CHECKING:
-    from .user import User
     from .tag import Tag
     from .word import Word
-
 
 __all__ = ['Vocab']
 
 
-class Vocab(Base, TimestampMixin):
+class Vocab(
+    TimestampMixin,
+    UserMixin,
+    IDMixin,
+    Base
+):
     """
     `Vocab` - short form of the `vocabulary`.
     """
 
     __tablename__ = 'vocabs'
-
-    id: Mapped[int] = Column(
-        BigInteger,
-        primary_key=True
+    __table_args__ = (
+        UniqueConstraint('title', 'user_id'),
     )
+
     title: Mapped[str] = Column(
         String(128),
         nullable=False
     )
-    description: Mapped[str | None] = Column(
-        String(512)
+    description: Mapped[str] = Column(
+        String(512),
+        nullable=False
     )
-    language: Mapped[Language] = Column(
-        Enum(Language, name='language')
+    is_public: Mapped[bool] = Column(
+        Boolean,
+        nullable=False
     )
     is_favourite: Mapped[bool] = Column(
         Boolean,
         server_default=false(), nullable=False
     )
-    user_id: Mapped[int] = Column(
-        ForeignKey('users.id', ondelete=CASCADE),
-        nullable=False
-    )
 
-    user: Mapped['User'] = relationship(
-        'User',
-        back_populates='vocabs'
-    )
     tags: Mapped[list['Tag']] = relationship(
-        'VocabTagsAssociation',
+        'VocabTagAssociation',
         back_populates='vocab'
     )
     words: Mapped[list['Word']] = relationship(
@@ -77,7 +73,6 @@ class Vocab(Base, TimestampMixin):
             f'{self.__class__.__name__}('
             f'id={self.id!r}, '
             f'title={self.title!r}, '
-            f'language={self.language!r}, '
             f'user_id={self.user_id!r}'
             ')'
         )

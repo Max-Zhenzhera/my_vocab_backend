@@ -1,25 +1,28 @@
 import logging
 
-from app.core.settings.app import AppProdSettings
-from app.utils.logging_.config import get_logging_config
+from ..logging_.config import get_logging_config
+from ...core.settings.app import AppProdSettings
 
 
-__all__ = ['run_prod']
-
+__all__ = ['run']
 
 logger = logging.getLogger(__name__)
 
 
-def run_prod(app_path: str, settings: AppProdSettings) -> None:
-    from app.utils.gunicorn_ import StandaloneApplication
+def run(app_path: str, settings: AppProdSettings) -> None:
+    from ..gunicorn_ import StandaloneApplication
 
     logger.info(
         'Used runner for prod environment [Gunicorn] '
-        f'with [{settings.gunicorn.workers}] workers.'
+        f'with [{settings.gunicorn_workers_number}] workers.'
     )
     StandaloneApplication(
         app=app_path,
-        bind=settings.socket.bind,
-        logconfig_dict=get_logging_config(settings),
-        **settings.gunicorn.kwargs,
+        bind=settings.socket_bind,
+        logconfig_dict=get_logging_config(
+            app_info=settings.app_info,
+            settings=settings.logging
+        ),
+        workers=settings.gunicorn_workers_number,
+        worker_class=settings.gunicorn_worker_class
     ).run()

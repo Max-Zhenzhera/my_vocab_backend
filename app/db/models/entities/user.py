@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
     DateTime,
@@ -10,37 +9,39 @@ from sqlalchemy import (
     false,
     true
 )
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import (
     Mapped,
     relationship
 )
 
 from ..base import Base
-from ..mixins import TimestampMixin
-from ...functions.server_defaults import gen_random_uuid
+from ..mixins import (
+    IDMixin,
+    TimestampMixin
+)
 
 
 if TYPE_CHECKING:
+    from .oauth_connection import OAuthConnection
+    from .refresh_session import RefreshSession
     from .tag import Tag
     from .vocab import Vocab
-    from ..auth import (
-        OAuthConnection,
-        RefreshSession
-    )
-
 
 __all__ = ['User']
 
 
-class User(Base, TimestampMixin):
+class User(
+    TimestampMixin,
+    IDMixin,
+    Base
+):
     __tablename__ = 'users'
 
-    id: Mapped[int] = Column(
-        BigInteger,
-        primary_key=True
-    )
     email: Mapped[str] = Column(
+        String(256),
+        nullable=False, index=True, unique=True
+    )
+    username: Mapped[str] = Column(
         String(256),
         nullable=False, index=True, unique=True
     )
@@ -48,23 +49,15 @@ class User(Base, TimestampMixin):
         String(128),
         nullable=False
     )
-    email_confirmation_token: Mapped[str] = Column(
-        UUID,
-        server_default=gen_random_uuid(), nullable=False
-    )
     is_active: Mapped[bool] = Column(
         Boolean,
         server_default=true(), nullable=False
-    )
-    is_email_confirmed: Mapped[bool] = Column(
-        Boolean,
-        server_default=false(), nullable=False
     )
     is_superuser: Mapped[bool] = Column(
         Boolean,
         server_default=false(), nullable=False
     )
-    email_confirmed_at: Mapped[datetime | None] = Column(
+    email_updated_at: Mapped[datetime] = Column(
         DateTime
     )
 
@@ -80,7 +73,7 @@ class User(Base, TimestampMixin):
         'RefreshSession',
         back_populates='user', passive_deletes=True
     )
-    oauth_connection: Mapped['OAuthConnection'] = relationship(
+    oauth_connections: Mapped[list['OAuthConnection']] = relationship(
         'OAuthConnection',
         back_populates='user', passive_deletes=True
     )
@@ -89,6 +82,8 @@ class User(Base, TimestampMixin):
         return (
             f'{self.__class__.__name__}('
             f'id={self.id!r}, '
-            f'email={self.email!r}'
+            f'email={self.email!r}, '
+            f'username={self.username!r}, '
+            f'is_superuser={self.is_superuser!r}'
             ')'
         )

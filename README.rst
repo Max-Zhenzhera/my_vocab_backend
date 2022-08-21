@@ -8,7 +8,7 @@ My Vocab Backend
 
 Run in Docker
 =============
-| ``Test`` [tests (pytest), linting (flake8), type-checking (mypy)]:
+| ``Test`` [tests (pytest), linting (flake8, isort), type-checking (mypy)]:
 .. code-block:: bash
 
     $ make test
@@ -33,16 +33,16 @@ Run in Docker
 
 Run locally
 =============
-| Serve **postgres** DB for app. [I'm sure You understand that you have to put **DB URI** to that **DB** in *.env* files.]
+| Serve **postgres** DB for app.
+| [I'm sure You understand that you have to put **DB URL** to that **DB** in *.env* files.]
 | Put ``APP_ENV`` in **.env/environment**.
 
 | ``Test``:
 .. code-block:: bash
 
-    $ flake8 app
-    $ flake8 tests
-    $ mypy app
-    $ mypy tests --disable-error-code=override --disable-error-code=misc --disable-error-code=no-untyped-def
+    $ make local-test
+    # or
+    $ make lint
     $ pytest
 
 | ``Prod``:
@@ -63,7 +63,7 @@ Full Prod setup
 
 .. code-block:: bash
 
-    $ mkcert backend.myvocab.com localhost 127.0.0.1 ::1
+    $ mkcert api.myvocab.io localhost 127.0.0.1 ::1
 
 | Put this cert under *./nginx/certs*. [Use other domains? Substitute all occurrences]
 | Link cert to nginx conf.d (to local run):
@@ -80,7 +80,7 @@ Full Prod setup
     ...
     # custom domains
     127.0.0.1       gunicorn_host
-    127.0.0.1       backend.myvocab.com
+    127.0.0.1       api.myvocab.io
 
 | You're ready to run both as locally as in Docker.
 | Serve **nginx** to local run.

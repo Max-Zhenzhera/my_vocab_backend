@@ -1,39 +1,49 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    BigInteger,
     Boolean,
     Column,
     ForeignKey,
     String,
+    UniqueConstraint,
     false
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import (
     Mapped,
     relationship
 )
 
 from ..base import Base
-from ..mixins import TimestampMixin
+from ..mixins import (
+    IDMixin,
+    TimestampMixin
+)
 from ...constants import CASCADE
 
 
 if TYPE_CHECKING:
     from .vocab import Vocab
 
-
 __all__ = ['Word']
 
 
-class Word(Base, TimestampMixin):
+class Word(
+    TimestampMixin,
+    IDMixin,
+    Base
+):
     __tablename__ = 'words'
-
-    id: Mapped[int] = Column(
-        BigInteger,
-        primary_key=True
+    __table_args = (
+        UniqueConstraint('word', 'vocab_id'),
     )
+
     word: Mapped[str] = Column(
         String(256),
+        nullable=False
+    )
+    sentences: Mapped[list[str]] = Column(
+        ARRAY(String(512)),
         nullable=False
     )
     is_learned: Mapped[bool] = Column(

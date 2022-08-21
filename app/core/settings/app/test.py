@@ -1,6 +1,6 @@
 from pydantic import (
     Field,
-    SecretStr
+    RedisDsn
 )
 
 from .base import AppSettings
@@ -14,12 +14,14 @@ class AppTestSettings(AppSettings):
     cors_methods: list[str] = Field(['*'], env='CORS_METHODS')
     cors_headers: list[str] = Field(['*'], env='CORS_HEADERS')
 
-    session_secret: SecretStr = Field('fakeSessionSecret', env='SESSION_SECRET')
+    session_secret: str = Field('fakeSessionSecret', env='SESSION_SECRET')
 
-    jwt_secret: SecretStr = Field('fakeJWTSecret', env='JWT_SECRET')
+    redis_url: RedisDsn = Field('redis://localhost', env='REDIS_URL')
+
+    jwt_secret: str = Field('fakeJWTSecret', env='JWT_SECRET')
 
     mail_username: str = Field('test@myvocab.com', env='MAIL_USERNAME')
-    mail_password: SecretStr = Field('fakeMailPassword', env='MAIL_PASSWORD')
+    mail_password: str = Field('fakeMailPassword', env='MAIL_PASSWORD')
     mail_server: str = Field('smtp.myvocab.com', env='MAIL_SERVER')
     mail_port: int = Field(587, env='MAIL_PORT')
     mail_tls: bool = Field(True, env='MAIL_TLS')
@@ -28,15 +30,6 @@ class AppTestSettings(AppSettings):
     mail_from_name: str = Field('My Vocab App In Test', env='MAIL_FROM_NAME')
     mail_suppress_send: bool = Field(True, env='MAIL_SUPPRESS_SEND')
 
-    oauth_google_client_id: SecretStr = Field(
-        'fakeGoogleClientID',
-        env='GOOGLE_CLIENT_ID'
-    )
-    oauth_google_client_secret: SecretStr = Field(
-        'fakeGoogleClientSecret',
-        env='GOOGLE_CLIENT_SECRET'
-    )
-
     access_token_expire_in_seconds: int = Field(
         6_000,
         env='ACCESS_TOKEN_EXPIRE_IN_SECONDS'
@@ -44,4 +37,9 @@ class AppTestSettings(AppSettings):
     refresh_token_expire_in_seconds: int = Field(
         60_000,
         env='ACCESS_TOKEN_EXPIRE_IN_SECONDS'
+    )
+
+    verification_code_expire_in_seconds: int = Field(
+        6_000,
+        env='VERIFICATION_CODE_EXPIRE_IN_SECONDS'
     )

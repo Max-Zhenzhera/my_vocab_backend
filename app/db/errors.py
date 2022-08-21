@@ -3,11 +3,6 @@ DBError
     +-- EntityDoesNotExistError
 """
 
-__all__ = [
-    'DBError',
-    'EntityDoesNotExistError'
-]
-
 
 class DBError(Exception):
     """ Common DB exception. """

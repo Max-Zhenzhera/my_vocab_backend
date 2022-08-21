@@ -1,4 +1,4 @@
-from .logging_ import AppSettingsLoggingMixin
+from .logging_ import LoggingSettingsMixin
 
 
-__all__ = ['AppSettingsLoggingMixin']
+__all__ = ['LoggingSettingsMixin']

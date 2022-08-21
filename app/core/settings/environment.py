@@ -1,5 +1,4 @@
 from enum import Enum
-from typing import Final
 
 
 __all__ = [
@@ -14,7 +13,7 @@ class AppEnvType(str, Enum):
     TEST = 'test'
 
 
-ENV_FILES: Final = {
-    environment: '.env.' + environment.value
+ENV_FILES = {
+    environment: f'.env.{environment}'
     for environment in AppEnvType
 }

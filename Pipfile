@@ -4,20 +4,21 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-fastapi-mail = "*"  # already depends on `fastapi`
+fastapi = "*"
+fastapi-mail = "*"
 pydantic = {extras = ["email"], version = "*"}
 uvicorn = {extras = ["standard"], version = "*"}
 alembic = "*"
 sqlalchemy = "*"
 asyncpg = "*"
 authlib = "*"
-python-jose = {extras = ["cryptography"], version = "*"}
 passlib = {extras = ["bcrypt"], version = "*"}
 itsdangerous = "*"
 python-dotenv = "*"
 pyyaml = "*"
 httpx = "*"
-python-freedictionaryapi = {extras = ["async-client"], version = "*"}
+redis = "*"
+pyjwt = "*"
 # prod
 gunicorn = "*"
 
@@ -26,11 +27,15 @@ pytest = "*"
 pytest-asyncio = "*"
 pytest-mock = "*"
 flake8 = "*"
+flake8-quotes = "*"
+isort = "*"
 coverage = "*"
 mypy = "*"
 types-pyyaml = "*"
+types-redis = "*"
 sqlalchemy2-stubs = "*"
 asgi-lifespan = "*"
+ipython = "*"
 
 [requires]
 python_version = "3.10"

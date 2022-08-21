@@ -3,6 +3,10 @@ version: "3.9"
 
 services:
 
+  redis:
+    image: redis
+    restart: always
+
   postgres:
     image: postgres
     volumes:
@@ -21,7 +25,8 @@ services:
       - .env.dev
     environment:
       APP_ENV: dev
-      DB_URI: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      REDIS_URL: redis://redis:6379/
     depends_on:
       - postgres
     command: alembic upgrade head
@@ -39,11 +44,13 @@ services:
       APP_ENV: dev
       APP_HOST: 0.0.0.0
       APP_PORT: 8000
-      UVICORN_RELOAD: "False"
-      DB_URI: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      UVICORN_RELOAD: 0
+      DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      REDIS_URL: redis://redis:6379/
     depends_on:
+      - redis
       - migration
     restart: always
 
 volumes:
-  postgres_volume: {}
+  postgres_volume:

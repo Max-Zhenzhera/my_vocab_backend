@@ -25,9 +25,8 @@ def _to_dataclass(
         handler: Callable[[Any, str], Any],
         data: Any
 ) -> T:
-    return cls(
-        **{
-            field.name: handler(data, field.name)
-            for field in fields(cls)
-        }
-    )
+    parsed = {
+        field.name: handler(data, field.name)
+        for field in fields(cls)
+    }
+    return cls(**parsed)
