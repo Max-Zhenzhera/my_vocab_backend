@@ -41,16 +41,18 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
-      - name: Install pipenv
-        run: |
-          python -m pip install --upgrade pip && \
-          python -m pip install pipenv
+      - id: cache-pipenv
+        uses: actions/cache@v3
+        with:
+          path: ~/.local/share/virtualenvs
+          key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
       - name: Install dependencies
+        if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: |
-          pipenv install --system --deploy --dev
+          pipenv install --deploy --dev
       - name: Run tests
         run: |
-          pytest
+          pipenv run pytest
         env:
           APP_ENV: test
           DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@localhost:5432/my_vocab
@@ -66,13 +68,15 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
-      - name: Install pipenv
-        run: |
-          python -m pip install --upgrade pip && \
-          python -m pip install pipenv
+      - id: cache-pipenv
+        uses: actions/cache@v3
+        with:
+          path: ~/.local/share/virtualenvs
+          key: ${{ runner.os }}-pipenv-${{ hashFiles('**/Pipfile.lock') }}
       - name: Install dependencies
+        if: steps.cache-pipenv.outputs.cache-hit != 'true'
         run: |
-          pipenv install --system --deploy --dev
+          pipenv install --deploy --dev
       - name: Run lint
         run: |
-          ./scripts/lint.sh
+          pipenv run bash ./scripts/lint.sh
