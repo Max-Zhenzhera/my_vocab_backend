@@ -19,7 +19,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
         ports:
-          - 6339:6379
+          - 6379:6379
 
       postgres:
         image: postgres
