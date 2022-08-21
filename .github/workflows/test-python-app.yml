@@ -63,4 +63,4 @@ jobs:
         env:
           APP_ENV: test
           DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@localhost:5432/my_vocab
-          REDIS_URL: redis://redis:6379/
+          REDIS_URL: redis://localhost:6379/
