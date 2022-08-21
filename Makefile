@@ -7,14 +7,14 @@ validate-env:  # arguments: env(str=prod|dev|test);
 	echo "${ENVIRONMENTS}" | rg -w --quiet "${env}"; \
 	if [ $$? -ne 0 ]; \
 	then \
-	    echo; \
-	    echo "┌────────────────────────────────────"; \
-	    echo "| Validation error:"; \
-    	echo "| Environment must be one of [${ENVIRONMENTS}], actual=${env}"; \
-    	echo "└────────────────────────────────────"; \
-	    echo; \
-    	exit 1; \
-    fi
+		echo; \
+		echo "┌────────────────────────────────────"; \
+		echo "| Validation error:"; \
+		echo "| Environment must be one of [${ENVIRONMENTS}], actual=${env}"; \
+		echo "└────────────────────────────────────"; \
+		echo; \
+		exit 1; \
+	fi
 
 dc:  # arguments: env(str=prod|dev|test);
 	make validate-env env="${env}"
