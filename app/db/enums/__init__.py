@@ -1,4 +1,8 @@
-from .language import Language
+from .oauth import OAuthBackend
+from .verification import VerificationAction
 
 
-__all__ = ['Language']
+__all__ = [
+    'OAuthBackend',
+    'VerificationAction'
+]

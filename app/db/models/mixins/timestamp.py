@@ -1,30 +1,45 @@
+from datetime import datetime
+
 from sqlalchemy import (
     Column,
     DateTime
 )
 from sqlalchemy.orm import (
-    declared_attr,
-    declarative_mixin
+    Mapped,
+    declarative_mixin,
+    declared_attr
 )
 
 from ...functions.server_defaults import utcnow
 
 
-__all__ = ['TimestampMixin']
+__all__ = [
+    'CreatedAtMixin',
+    'UpdatedAtMixin',
+    'TimestampMixin'
+]
 
 
 @declarative_mixin
-class TimestampMixin:
+class CreatedAtMixin:
     @declared_attr
-    def created_at(self) -> Column[DateTime]:
+    def created_at(self) -> Mapped[datetime]:
         return Column(
             DateTime,
             server_default=utcnow(), nullable=False
         )
 
+
+@declarative_mixin
+class UpdatedAtMixin:
     @declared_attr
-    def updated_at(self) -> Column[DateTime]:
+    def updated_at(self) -> Mapped[datetime]:
         return Column(
             DateTime,
-            server_default=utcnow(), onupdate=utcnow(), nullable=False
+            onupdate=utcnow()
         )
+
+
+@declarative_mixin
+class TimestampMixin(UpdatedAtMixin, CreatedAtMixin):
+    pass

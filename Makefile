@@ -1,44 +1,48 @@
-DC := "docker-compose"
-
-PROD="prod"
-DEV="dev"
-TEST="test"
-
 PROJECT_NAME := "my_vocab_backend"
-PROD_PROJECT_NAME := "${PROJECT_NAME}_${PROD}"
-DEV_PROJECT_NAME := "${PROJECT_NAME}_${DEV}"
-TEST_PROJECT_NAME := "${PROJECT_NAME}_${TEST}"
-
-PROD_COMPOSE := "${DC}.${PROD}.yaml"
-DEV_COMPOSE := "${DC}.${DEV}.yaml"
-TEST_COMPOSE := "${DC}.${TEST}.yaml"
-
+DC := "docker-compose"
 MIGRATIONS_DIR := "./app/db/migrations/versions"
+ENVIRONMENTS := "prod dev test"
 
+validate-env:  # arguments: env(str=prod|dev|test);
+	echo "${ENVIRONMENTS}" | rg -w --quiet "${env}"; \
+	if [ $$? -ne 0 ]; \
+	then \
+	    echo; \
+	    echo "┌────────────────────────────────────"; \
+	    echo "| Validation error:"; \
+    	echo "| Environment must be one of [${ENVIRONMENTS}], actual=${env}"; \
+    	echo "└────────────────────────────────────"; \
+	    echo; \
+    	exit 1; \
+    fi
 
+dc:  # arguments: env(str=prod|dev|test);
+	make validate-env env="${env}"
+	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" up
+dc-down:  # arguments: env(str=prod|dev|test);
+	make validate-env env="${env}"
+	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" down -v --rmi local
 prod:
-	${DC} -f ${PROD_COMPOSE} --project-name ${PROD_PROJECT_NAME} up
+	make dc env=prod
 prod-down:
-	${DC} -f ${PROD_COMPOSE} --project-name ${PROD_PROJECT_NAME} down -v --rmi local
-
+	make dc-down env=prod
 dev:
-	${DC} -f ${DEV_COMPOSE} --project-name ${DEV_PROJECT_NAME} up
+	make dc env=dev
 dev-down:
-	${DC} -f ${DEV_COMPOSE} --project-name ${DEV_PROJECT_NAME} down -v --rmi local
-
+	make dc-down env=dev
 test:
-	${DC} -f ${TEST_COMPOSE} --project-name ${TEST_PROJECT_NAME} up
+	make dc env=test
 test-down:
-	${DC} -f ${TEST_COMPOSE} --project-name ${TEST_PROJECT_NAME} down -v --rmi local
+	make dc-down env=test
 
 lint:
-	flake8 app && \
-	flake8 tests && \
-	mypy app && \
-	mypy tests --disable-error-code=override --disable-error-code=misc --disable-error-code=no-untyped-def
+	./scripts/lint.sh
+local-test:
+	make lint
+	pytest
 
 rm-mypy-cache:
-	rm -rf .mypy_cache
+	rm -rf .mypy_cache/
 
 clean:
 	make prod-down
@@ -46,7 +50,7 @@ clean:
 	make test-down
 	make rm-mypy-cache
 
-migration:  # arguments: message: str;
+migration:  # arguments: message(str);
 	alembic revision --autogenerate -m ${message}
 
 migrate:
@@ -60,6 +64,22 @@ rm-migrations:
 
 dangerous-remigrate:
 	make downgrade
+	@echo "┌────────────────────────────────────┐"
+	@echo "│ DB has been cleared                │"
+	@echo "└────────────────────────────────────┘"
 	make rm-migrations
+	@echo "┌────────────────────────────────────┐"
+	@echo "│ Old migrations have been deleted   │"
+	@echo "└────────────────────────────────────┘"
 	make migration message="init"
+	@echo "┌────────────────────────────────────┐"
+	@echo "│ Init migration has been made       │"
+	@echo "└────────────────────────────────────┘"
+	./scripts/add_enums_drop_to_migration.sh
+	@echo "┌────────────────────────────────────┐"
+	@echo "│ Enums drop have been fixed         │"
+	@echo "└────────────────────────────────────┘"
 	make migrate
+	@echo "┌────────────────────────────────────┐"
+	@echo "│ Migration has been migrated        │"
+	@echo "└────────────────────────────────────┘"

@@ -1,6 +1,4 @@
 import logging
-from functools import cache
-from typing import Final
 
 from .settings import AppSettings
 from .settings.app import (
@@ -15,23 +13,21 @@ from .settings.loader import (
 )
 
 
-__all__ = ['get_app_settings']
-
+__all__ = [
+    'ENVIRONMENTS',
+    'get_app_settings'
+]
 
 logger = logging.getLogger(__name__)
 
-ENVIRONMENTS: Final = {
+ENVIRONMENTS = {
     AppEnvType.PROD: AppProdSettings,
     AppEnvType.DEV: AppDevSettings,
     AppEnvType.TEST: AppTestSettings
 }
 
 
-@cache
 def get_app_settings(env_type: AppEnvType | None = None) -> AppSettings:
-    if env_type is not None:
-        logger.debug(f'{env_type!r} has been passed programmatically.')
-    else:
-        env_type = recognize_app_environment_type()
+    env_type = env_type or recognize_app_environment_type()
     load_app_environment(env_type)
     return ENVIRONMENTS[env_type](env_type=env_type)  # type: ignore[no-any-return]

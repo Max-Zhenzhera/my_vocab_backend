@@ -51,9 +51,9 @@ expected_dataclass_instance = Dataclass(
 @pytest.mark.parametrize(
     ('cls', 'data', 'result'),
     (
-            (Dataclass, SomeObject, expected_dataclass_instance),
-            (Dataclass, SomeObject(), expected_dataclass_instance),
-            (Dataclass, some_dict, expected_dataclass_instance),
+        (Dataclass, SomeObject, expected_dataclass_instance),
+        (Dataclass, SomeObject(), expected_dataclass_instance),
+        (Dataclass, some_dict, expected_dataclass_instance),
     )
 )
 def test_result(cls: Type[T], data: Any, result: T):

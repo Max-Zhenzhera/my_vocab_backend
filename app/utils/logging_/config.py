@@ -4,13 +4,15 @@ from typing import Any
 
 from .filters import StdoutFilter
 from .handlers import TGHandler
-from ...core.settings.app import AppSettingsWithLogging
+from ...core.settings.dataclasses_ import LoggingSettings
 
 
 __all__ = [
     'configure_base_logging',
     'get_logging_config'
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def configure_base_logging() -> None:
@@ -66,8 +68,11 @@ def configure_base_logging() -> None:
     logging.config.dictConfig(config)
 
 
-def get_logging_config(settings: AppSettingsWithLogging) -> dict[str, Any]:
-    return {
+def get_logging_config(
+    app_info: str,
+    settings: LoggingSettings
+) -> dict[str, Any]:
+    config = {
         'version': 1,
         'disable_existing_loggers': False,
         # Formatters
@@ -125,28 +130,21 @@ def get_logging_config(settings: AppSettingsWithLogging) -> dict[str, Any]:
                 'level': logging.WARNING,
                 'formatter': 'detailed',
                 'stream': 'ext://sys.stderr'
-            },
-            'tg_handler': {
-                '()': TGHandler,
-                'level_': logging.ERROR,
-                'settings': settings,
-                'formatter': 'detailed'
             }
         },
         # Root logger
         # ---------------------------------------
         'root': {
-            'level': settings.logging.level,
+            'level': settings.level,
             'handlers': [
                 'console',
-                'error_console',
-                'tg_handler'
+                'error_console'
             ]
         },
         # Loggers
         # ---------------------------------------
         'loggers': {
-            'sqlalchemy.engine': {
+            'sqlalchemy': {
                 'level': logging.INFO,
                 'propagate': True
             },
@@ -154,8 +152,7 @@ def get_logging_config(settings: AppSettingsWithLogging) -> dict[str, Any]:
                 'level': logging.INFO,
                 'handlers': [
                     'server_console',
-                    'server_error_console',
-                    'tg_handler'
+                    'server_error_console'
                 ],
                 'propagate': False
             },
@@ -163,8 +160,7 @@ def get_logging_config(settings: AppSettingsWithLogging) -> dict[str, Any]:
                 'level': logging.INFO,
                 'handlers': [
                     'server_console',
-                    'server_error_console',
-                    'tg_handler'
+                    'server_error_console'
                 ],
                 'propagate': False
             },
@@ -172,19 +168,38 @@ def get_logging_config(settings: AppSettingsWithLogging) -> dict[str, Any]:
                 'level': logging.INFO,
                 'handlers': [
                     'server_console',
-                    'server_error_console',
-                    'tg_handler'
+                    'server_error_console'
                 ],
-                "propagate": False
+                'propagate': False
             },
             'uvicorn.error': {
                 'level': logging.INFO,
                 'handlers': [
                     'server_console',
-                    'server_error_console',
-                    'tg_handler'
+                    'server_error_console'
                 ],
                 'propagate': False
             }
         }
     }
+
+    if settings.tg.use:
+        tg_handler_name = 'tg_handler'
+        config['handlers'][tg_handler_name] = {  # type: ignore[index]
+            '()': TGHandler,
+            'level': logging.ERROR,
+            'app_info': app_info,
+            'settings': settings.tg,
+            'formatter': 'detailed'
+        }
+        loggers_to_append_tg_handler = (
+            config['root'],
+            config['loggers']['gunicorn.access'],  # type: ignore[index]
+            config['loggers']['gunicorn.error'],  # type: ignore[index]
+            config['loggers']['uvicorn.access'],  # type: ignore[index]
+            config['loggers']['uvicorn.error']  # type: ignore[index]
+        )
+        for logger_ in loggers_to_append_tg_handler:
+            logger_['handlers'].append(tg_handler_name)
+
+    return config

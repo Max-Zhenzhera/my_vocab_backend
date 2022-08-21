@@ -3,6 +3,12 @@ version: "3.9"
 
 services:
 
+  redis:
+    image: redis
+    networks:
+      - backend_network
+    restart: always
+
   postgres:
     image: postgres
     networks:
@@ -25,7 +31,8 @@ services:
       - .env.prod
     environment:
       APP_ENV: prod
-      DB_URI: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      REDIS_URL: redis://redis:6379/
     depends_on:
       - postgres
     command: alembic upgrade head
@@ -47,10 +54,12 @@ services:
       APP_ENV: prod
       APP_HOST: 0.0.0.0
       APP_PORT: 8000
-      DB_URI: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/my_vocab
+      REDIS_URL: redis://redis:6379/
       FORWARDED_ALLOW_IPS: "*"
     depends_on:
       - migration
+      - redis
     restart: always
 
   nginx:
@@ -67,7 +76,7 @@ services:
 
 
 networks:
-  backend_network: {}
+  backend_network:
 
 volumes:
-  postgres_volume: {}
+  postgres_volume:

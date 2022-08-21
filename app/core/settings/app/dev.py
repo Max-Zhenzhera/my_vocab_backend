@@ -1,17 +1,14 @@
 from pydantic import Field
 
-from .mixed import AppSettingsWithLogging
-from ..dataclasses_.server import UvicornSettings
+from .base import AppSettings
+from .mixins import LoggingSettingsMixin
 
 
 __all__ = ['AppDevSettings']
 
 
-class AppDevSettings(AppSettingsWithLogging):
+class AppDevSettings(
+    LoggingSettingsMixin,
+    AppSettings
+):
     uvicorn_reload: bool = Field(False, env='UVICORN_RELOAD')
-
-    @property
-    def uvicorn(self) -> UvicornSettings:
-        return UvicornSettings(
-            reload=self.uvicorn_reload
-        )

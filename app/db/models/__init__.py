@@ -1,21 +1,11 @@
-"""
-Some mixins are not used:
-    mypy does not correctly work with mixins (SQLAlchemy) behaviour
-    as I expect (on moment of writing).
-"""
-
-from .auth import (
-    OAuthConnection,
-    RefreshSession
-)
 from .base import Base
-from .entities import (
-    Tag,
-    User,
-    Vocab,
-    VocabTagsAssociation,
-    Word
-)
+from .entities.oauth_connection import OAuthConnection
+from .entities.refresh_session import RefreshSession
+from .entities.tag import Tag
+from .entities.user import User
+from .entities.vocab import Vocab
+from .entities.word import Word
+from .m2m.vocab_tag import VocabTagAssociation
 
 
 __all__ = [
@@ -31,6 +21,8 @@ __all__ = [
     'User',
     'Tag',
     'Vocab',
-    'VocabTagsAssociation',
-    'Word'
+    'Word',
+    # Many-To-Many
+    # -------------------------------------------
+    'VocabTagAssociation'
 ]

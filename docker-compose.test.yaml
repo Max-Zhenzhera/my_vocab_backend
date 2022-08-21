@@ -2,6 +2,9 @@ version: "3.9"
 
 
 services:
+  redis:
+    image: redis
+    restart: always
 
   postgres:
     image: postgres
@@ -19,9 +22,11 @@ services:
       - .env.test
     environment:
       APP_ENV: test
-      DB_URI: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/test_my_vocab
+      DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/test_my_vocab
+      REDIS_URL: redis://redis:6379/
     depends_on:
       - postgres
+      - redis
 
   lint:
     build:
@@ -29,9 +34,4 @@ services:
       target: test
     environment:
       MYPY_CACHE_DIR: /dev/null
-    command: bash -c "
-        flake8 app &&
-        flake8 tests &&
-        mypy app &&
-        mypy tests --disable-error-code=override --disable-error-code=misc --disable-error-code=no-untyped-def
-      "
+    command: bash ./scripts/lint.sh

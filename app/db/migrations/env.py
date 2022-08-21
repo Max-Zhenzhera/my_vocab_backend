@@ -15,8 +15,13 @@ from app.db.models import Base
 config = context.config
 loggingFileConfig(config.config_file_name)
 
-config.set_main_option('sqlalchemy.url', get_app_settings().db.sqlalchemy_url)
+
 target_metadata = Base.metadata
+if config.get_main_option('sqlalchemy.url') is None:
+    config.set_main_option(
+        'sqlalchemy.url',
+        get_app_settings().sqlalchemy_url
+    )
 
 
 def run_migrations_offline():

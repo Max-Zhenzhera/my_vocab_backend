@@ -1,10 +1,7 @@
 import logging
 from io import BytesIO
 from logging import LogRecord
-from typing import (
-    Any,
-    Final
-)
+from typing import Any
 
 import httpx
 from httpx import (
@@ -13,42 +10,32 @@ from httpx import (
 )
 from starlette.status import HTTP_200_OK
 
-from ....core.settings.app import AppSettingsWithLogging
+from ....core.settings.dataclasses_ import TGLoggingSettings
 
 
 __all__ = ['TGHandler']
-
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.NOTSET)
 logger.propagate = False
 
-
-API_ENDPOINT: Final = 'https://api.telegram.org'
+API_ENDPOINT = 'https://api.telegram.org'
 
 
 class TGHandler(logging.Handler):
     def __init__(
-            self,
-            level_: int | str,
-            settings: AppSettingsWithLogging,
+        self,
+        app_info: str,
+        settings: TGLoggingSettings
     ) -> None:
-        super().__init__(level_)
-
+        self._app_info = app_info
         self._settings = settings
-
-    @property
-    def caption(self) -> str:
-        return (
-            f'{self._settings.fastapi.title} '
-            f'({self._settings.fastapi.version}) '
-            f'[{self._settings.env_type.value}]'
-        )
+        super().__init__()
 
     def emit(self, record: LogRecord) -> None:
         text = self.format(record)
 
-        for admin in self._settings.logging.tg.admins:
+        for admin in self._settings.admins:
             self._send_document(
                 chat_id=admin,
                 document=BytesIO(text.encode())
@@ -59,7 +46,7 @@ class TGHandler(logging.Handler):
             method='sendDocument',
             data={
                 'chat_id': chat_id,
-                'caption': self.caption
+                'caption': self._app_info
             },
             files={'document': ('traceback.txt', document, 'text/plain')}
         )
@@ -81,4 +68,4 @@ class TGHandler(logging.Handler):
             return response
 
     def _format_url(self, method: str) -> str:
-        return f'{API_ENDPOINT}/bot{self._settings.logging.tg.token}/{method}'
+        return f'{API_ENDPOINT}/bot{self._settings.token}/{method}'

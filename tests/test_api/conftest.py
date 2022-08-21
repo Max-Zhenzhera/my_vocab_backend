@@ -1,271 +1,276 @@
-"""
-Fixtures:
-    +-- app settings
-    +-- migrations
-        +-- config
-        +-- applying migrations
-    +-- app
-        +-- just built app
-        +-- fully initialized app
-    +-- meta users
-        +-- user 1
-    +-- clients
-        +-- simple test client for app
-        +-- unauthenticated
-            +-- without OAuth
-                +-- client for user 1
-            +-- with OAuth
-                +-- client for user 1
-        +-- authenticated
-            +-- without OAuth
-                +-- client for user 1
-            +-- with OAuth
-                +-- client for user 1
-    +-- created users
-        +-- user 1
-    +-- mail sender
-    +-- db
-        +-- components
-            +-- sessionmaker
-            +-- session
-        +-- repos
-            +-- OAuthConnectionsRepo
-            +-- RefreshSessionsRepo
-            +-- UsersRepo
-"""
-
-from __future__ import annotations  # https://github.com/sqlalchemy/sqlalchemy/issues/7656
-
-from collections.abc import AsyncGenerator
+import asyncio
+from collections.abc import (
+    AsyncGenerator,
+    Callable
+)
+from contextlib import asynccontextmanager
+from os import environ
+from typing import (
+    Any,
+    TypeAlias
+)
 
 import pytest
 from alembic.command import (
     downgrade as alembic_downgrade,
-    upgrade as alembic_upgrade,
+    upgrade as alembic_upgrade
 )
 from alembic.config import Config as AlembicConfig
 from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from fastapi_mail import FastMail
 from httpx import AsyncClient
+from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import sessionmaker
 
-from app.factory import get_app
+from app.api.dependencies.markers import (
+    DBSessionInTransactionMarker,
+    MailSenderMarker,
+    PasswordCryptContextMarker,
+    RedisMarker
+)
+from app.builder import get_app
 from app.core.config import get_app_settings
 from app.core.settings import AppSettings
 from app.core.settings.environment import AppEnvType
 from app.core.settings.paths import ALEMBIC_CONFIG_PATH
-from app.db.repos import (
-    OAuthConnectionsRepo,
-    RefreshSessionsRepo,
-    UsersRepo
+from app.db.models import User
+from app.db.repos import UsersRepo
+from app.services.auth import UserService
+from app.services.jwt_ import (
+    JWTBlacklistService,
+    JWTService
 )
-from app.schemas.entities.user import UserInResponse
-from .dataclasses_ import MetaUser
-from .helpers.auth import (
-    authenticate_client,
-    get_user_from_client,
-    make_unauthenticated_client
-)
-from .helpers.oauth import link_oauth_connections
+from app.services.redis_ import RedisClient
+from app.services.verification import VerificationService
+from tests.test_api.dtos import MetaUser
 
 
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: app settings
+Deps: TypeAlias = dict[Callable[..., Any], Callable[..., Any]]
+""" App dependency overrides. """
 
 
-@pytest.fixture(name='app_settings', scope='session')
-def fixture_app_settings() -> AppSettings:
+# environment
+# -----------------------------------------------
+
+@pytest.fixture(scope='session', autouse=True)
+def set_app_env() -> None:
+    environ['APP_ENV'] = AppEnvType.TEST
+
+
+# loop
+# -----------------------------------------------
+
+
+@pytest.fixture(scope='session')
+def event_loop() -> AsyncGenerator[asyncio.AbstractEventLoop, None]:
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+# app initialization
+# -----------------------------------------------
+
+@pytest.fixture(scope='session')
+def settings() -> AppSettings:
     return get_app_settings(AppEnvType.TEST)
 
 
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: migrations
-
-
-@pytest.fixture(name='alembic_config', scope='session')
-def fixture_alembic_config(app_settings: AppSettings) -> AlembicConfig:
+@pytest.fixture(scope='session')
+def alembic_config(settings: AppSettings) -> AlembicConfig:
     config = AlembicConfig(str(ALEMBIC_CONFIG_PATH))
-    config.set_main_option('sqlalchemy.url', app_settings.db.sqlalchemy_url)
+    config.set_main_option('sqlalchemy.url', settings.sqlalchemy_url)
     return config
 
 
-@pytest.fixture(name='apply_migrations')
-def fixture_apply_migrations(alembic_config: AlembicConfig) -> None:
+@pytest.fixture(scope='session')
+def apply_migrations(alembic_config: AlembicConfig) -> None:
     alembic_upgrade(alembic_config, 'head')
     yield
     alembic_downgrade(alembic_config, 'base')
 
 
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: app
+@pytest.fixture(scope='session')
+def prepare_and_cleanup_resources(
+    apply_migrations: None
+) -> None:
+    pass
 
 
-@pytest.fixture(name='app')
-def fixture_app(app_settings: AppSettings, apply_migrations: None) -> FastAPI:
-    return get_app(app_settings)
+@pytest.fixture(scope='session')
+def app(
+    settings: AppSettings,
+) -> FastAPI:
+    return get_app(settings)
 
 
-@pytest.fixture(name='initialized_app')
-async def fixture_initialized_app(app: FastAPI) -> AsyncGenerator[FastAPI, None]:
+@pytest.fixture(scope='session')
+async def initialized_app(
+    app: FastAPI,
+    prepare_and_cleanup_resources: None
+) -> AsyncGenerator[FastAPI, None]:
     async with LifespanManager(app):
         yield app
 
 
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: meta users
+# dependencies
+# -----------------------------------------------
+
+@pytest.fixture(scope='session')
+def deps(initialized_app: FastAPI) -> Deps:
+    return initialized_app.dependency_overrides
 
 
-@pytest.fixture(name='meta_user_1', scope='session')
-def fixture_meta_user_1() -> MetaUser:
-    return MetaUser(
-        email='user1@gmail.com',
-        password='user1Password',
-        google_id='user1GoogleID'
+@pytest.fixture(name='db_session')
+async def db_session(
+    deps: Deps
+) -> AsyncGenerator[AsyncSession, None]:
+    call = deps[DBSessionInTransactionMarker]
+    async with asynccontextmanager(call)() as session:
+        yield session
+
+
+@pytest.fixture
+def redis(
+    deps: Deps
+) -> RedisClient:
+    call = deps[RedisMarker]
+    return call()
+
+
+@pytest.fixture
+def mail_sender(
+    deps: Deps
+) -> FastMail:
+    call = deps[MailSenderMarker]
+    return call()
+
+
+@pytest.fixture
+def pwd_context(
+    deps: Deps
+) -> CryptContext:
+    call = deps[PasswordCryptContextMarker]
+    return call()
+
+
+@pytest.fixture
+def verification_service(
+    settings: AppSettings,
+    redis: RedisClient
+) -> VerificationService:
+    return VerificationService(
+        redis=redis,
+        settings=settings
     )
 
 
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: clients
+@pytest.fixture
+def user_service(
+    db_session: AsyncSession,
+    pwd_context: CryptContext
+) -> UserService:
+    return UserService(
+        repo=UsersRepo(db_session),
+        pwd_context=pwd_context
+    )
 
 
-@pytest.fixture(name='client')
-async def fixture_client(initialized_app: FastAPI) -> AsyncGenerator[AsyncClient, None]:
+@pytest.fixture
+def jwt_service(
+    settings: AppSettings
+) -> JWTService:
+    return JWTService(settings)
+
+
+@pytest.fixture
+def jwt_blacklist_service(
+    settings: AppSettings,
+    redis: RedisClient
+) -> JWTBlacklistService:
+    return JWTBlacklistService(
+        redis=redis,
+        settings=settings
+    )
+
+
+# users
+# -----------------------------------------------
+
+@pytest.fixture
+def meta_user_1() -> MetaUser:
+    return MetaUser(
+        email='user1@gmail.com',
+        username='user1Username',
+        password='user1Password',
+        oauth_id='user1OAuthID12345'
+    )
+
+
+@pytest.fixture
+async def user_1(
+    user_service: UserService,
+    meta_user_1: MetaUser
+) -> AsyncGenerator[User, None]:
+    user = await user_service.raw_create(meta_user_1.in_create)
+    await user_service.repo.session.commit()
+
+    yield user
+
+    await user_service.repo.delete_one_by_pk(user.id)
+    await user_service.repo.session.commit()
+
+
+# clients
+# -----------------------------------------------
+
+@pytest.fixture(scope='session')
+async def client(
+    initialized_app: FastAPI
+) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(
-            app=initialized_app,
-            base_url='http://testserver',
-            headers={"Content-Type": "application/json"},
+        app=initialized_app,
+        base_url='http://testserver',
+        headers={'Content-Type': 'application/json'},
     ) as client:
         yield client
 
 
-# # Fixtures: unauthenticated ------------------------------------------------------------
-
-# # # Fixtures: without OAuth ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-@pytest.fixture(name='unauthenticated_client_1')
-async def fixture_unauthenticated_client_1(
-        app: FastAPI,
-        client: AsyncClient,
-        oauth_connections_repo: OAuthConnectionsRepo,
-        meta_user_1: MetaUser
+@pytest.fixture
+async def no_auth_client_1(
+    user_1: User,
+    client: AsyncClient
 ) -> AsyncClient:
-    unauthenticated_client_1 = await make_unauthenticated_client(
-        app=app,
-        client=client,
-        meta_user=meta_user_1
-    )
-    await link_oauth_connections(
-        oauth_connections_repo=oauth_connections_repo,
-        client=unauthenticated_client_1,
-        meta_user=meta_user_1
-    )
-    return unauthenticated_client_1
+    return client
 
 
-# # # Fixtures: with OAuth +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-@pytest.fixture(name='unauthenticated_client_1_with_oauth')
-async def fixture_unauthenticated_client_1_with_oauth(
-        unauthenticated_client_1: AsyncClient,
-        oauth_connections_repo: OAuthConnectionsRepo,
-        meta_user_1: MetaUser
+@pytest.fixture
+async def client_1(
+    user_1: User,
+    jwt_service: JWTService,
+    client: AsyncClient
 ) -> AsyncClient:
-    await link_oauth_connections(
-        oauth_connections_repo=oauth_connections_repo,
-        client=unauthenticated_client_1,
-        meta_user=meta_user_1
-    )
-    return unauthenticated_client_1
+    access_token = jwt_service.generate(user_1)
+    client.headers['Authorization'] = f'Bearer {access_token}'
+    return client
 
 
-# # Fixtures: authenticated --------------------------------------------------------------
+# utils
+# -----------------------------------------------
 
-# # # Fixtures: without OAuth ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-@pytest.fixture(name='client_1')
-async def fixture_client_1(
-        app: FastAPI,
-        unauthenticated_client_1: AsyncClient,
-        meta_user_1: MetaUser
-) -> AsyncClient:
-    return await authenticate_client(
-        app=app,
-        client=unauthenticated_client_1,
-        meta_user=meta_user_1
-    )
+@pytest.fixture
+async def flush_redis_db_after_test(
+    redis: RedisClient
+) -> AsyncGenerator[None, None]:
+    yield
+    await redis.flushdb()
 
 
-# # # Fixtures: with OAuth +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-
-@pytest.fixture(name='client_1_with_oauth')
-async def fixture_client_1_with_oauth(
-        app: FastAPI,
-        unauthenticated_client_1_with_oauth: AsyncClient,
-        meta_user_1: MetaUser
-) -> AsyncClient:
-    return await authenticate_client(
-        app=app,
-        client=unauthenticated_client_1_with_oauth,
-        meta_user=meta_user_1
-    )
-
-
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: created users
-
-
-@pytest.fixture(name='user_1')
-def fixture_user_1(client_1: AsyncClient) -> UserInResponse:
-    return get_user_from_client(client_1)
-
-
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: mail sender
-
-
-@pytest.fixture(name='mail_sender')
-def fixture_mail_sender(initialized_app: FastAPI) -> FastMail:
-    return initialized_app.state.mail.sender
-
-
-# ////////////////////////////////////////////////////////////////////////////////////////
-# Fixtures: db
-
-# # Fixtures: components -----------------------------------------------------------------
-
-
-@pytest.fixture(name='db_sessionmaker')
-def fixture_sessionmaker(initialized_app: FastAPI) -> sessionmaker[AsyncSession]:
-    return initialized_app.state.db.sessionmaker  # type: ignore[no-any-return]
-
-
-@pytest.fixture(name='db_session')
-async def fixture_db_session(
-        db_sessionmaker: sessionmaker[AsyncSession]
-) -> AsyncGenerator[AsyncSession, None]:
-    async with db_sessionmaker() as session:
-        yield session
-
-
-# # Fixtures: repos ----------------------------------------------------------------------
-
-
-@pytest.fixture(name='oauth_connections_repo')
-def fixture_oauth_connections_repo(db_session: AsyncSession) -> OAuthConnectionsRepo:
-    return OAuthConnectionsRepo(db_session)
-
-
-@pytest.fixture(name='refresh_sessions_repo')
-def fixture_refresh_sessions_repo(db_session: AsyncSession) -> RefreshSessionsRepo:
-    return RefreshSessionsRepo(db_session)
-
-
-@pytest.fixture(name='users_repo')
-def fixture_users_repo(db_session: AsyncSession) -> UsersRepo:
-    return UsersRepo(db_session)
+@pytest.fixture
+async def delete_all_users_after_test(
+    db_session: AsyncSession
+) -> AsyncGenerator[None, None]:
+    yield
+    await UsersRepo(db_session).delete_all()
+    await db_session.commit()

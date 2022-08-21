@@ -1,15 +1,43 @@
 import logging
-import warnings
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
+from .api.dependencies.auth import (
+    get_current_superuser,
+    get_current_user
+)
+from .api.dependencies.auth.markers import (
+    CurrentSuperuserMarker,
+    CurrentUserMarker
+)
+from .api.dependencies.markers import (
+    AppSettingsMarker,
+    DBSessionInTransactionMarker,
+    MailSenderMarker,
+    OAuthMarker,
+    PasswordCryptContextMarker,
+    RedisMarker
+)
+from .api.errors import add_server_error_handler
+from .api.routes import router as api_router
 from .core.settings import AppSettings
 from .core.settings.environment import AppEnvType
+from .db import DBState
+from .services.mail import MailState
+from .services.oauth import OAuthState
+from .services.password import PasswordState
+from .services.redis_ import RedisState
 
 
-__all__ = ['AppBuilder']
-
+__all__ = [
+    'AppBuilder',
+    'get_app'
+]
 
 logger = logging.getLogger(__name__)
 
@@ -19,109 +47,81 @@ class AppBuilder:
     settings: AppSettings
 
     def __post_init__(self) -> None:
-        self.app = FastAPI(**self.settings.fastapi.kwargs)
-
-    @property
-    def short_app_info(self) -> str:
-        return f'< "{self.settings.fastapi.title}" [{self.settings.fastapi.version}] >'
+        self.app = FastAPI(
+            title=self.settings.fastapi_title,
+            version=self.settings.fastapi_version,
+            docs_url=self.settings.fastapi_docs_url,
+            redoc_url=self.settings.fastapi_redoc_url,
+            swagger_ui_parameters={'docExpansion': 'none'},
+        )
 
     def build(self) -> FastAPI:
         self._add_middlewares()
-        self._add_event_handlers()
         self._add_exception_handlers()
         self._include_routers()
-        self._inject_dependencies()
-        logger.info(f'App {self.short_app_info} has been built.')
+        self._set_lifespan()
+        logger.info(f'{self.settings.app_info} has been built.')
         return self.app
 
     def _add_middlewares(self) -> None:
         self._add_session_middleware()
         self._add_cors_middleware()
-        logger.debug('Middlewares have been added.')
 
     def _add_session_middleware(self) -> None:
-        from starlette.middleware.sessions import SessionMiddleware
-
         self.app.add_middleware(
             SessionMiddleware,
-            secret_key=self.settings.session.secret
+            secret_key=self.settings.session_secret
         )
-        logger.debug('Session middleware has been added.')
 
     def _add_cors_middleware(self) -> None:
-        from starlette.middleware.cors import CORSMiddleware
-
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=self.settings.cors.origins,
-            allow_methods=self.settings.cors.methods,
-            allow_headers=self.settings.cors.headers,
-            allow_credentials=True
+            allow_origins=self.settings.cors_origins,
+            allow_methods=self.settings.cors_methods,
+            allow_headers=self.settings.cors_headers,
+            allow_credentials=True,
         )
-        logger.debug('CORS middleware has been added.')
-
-    def _add_event_handlers(self) -> None:
-        self._add_startup_handler()
-        self._add_shutdown_handler()
-        logger.debug('Event handlers have been added.')
-
-    def _add_startup_handler(self) -> None:
-        from .core.events import get_startup_handler
-
-        self.app.add_event_handler(
-            event_type='startup',
-            func=get_startup_handler(self.app, self.settings)
-        )
-        logger.debug('Startup handler has been added.')
-
-    def _add_shutdown_handler(self) -> None:
-        from .core.events import get_shutdown_handler
-
-        self.app.add_event_handler(
-            event_type='shutdown',
-            func=get_shutdown_handler(self.app)
-        )
-        logger.debug('Shutdown handler has been added.')
 
     def _add_exception_handlers(self) -> None:
-        self._add_internal_server_exception_handler()
-        logger.debug('Exception handlers have been added.')
-
-    def _add_internal_server_exception_handler(self) -> None:
         if self.settings.env_type is AppEnvType.DEV:
-            from .api.errors.server import internal_server_exception_handler
-
-            self.app.add_exception_handler(Exception, internal_server_exception_handler)
-            warnings.warn(
-                UserWarning(
-                    'Exception handler that shows traceback on internal server error '
-                    'has been added [Included for DEV environment].'
-                )
-            )
+            add_server_error_handler(self.app)
 
     def _include_routers(self) -> None:
         self._include_api_router()
-        logger.debug('Routers have been included.')
 
     def _include_api_router(self) -> None:
-        from .api.routes import router
+        self.app.include_router(router=api_router)
 
-        self.app.include_router(
-            router=router,
-            prefix='/api'
-        )
-        logger.debug('API router has been included.')
+    def _set_lifespan(self) -> None:
+        self.app.router.lifespan_context = self._lifespan
 
-    def _inject_dependencies(self) -> None:
-        from .api.dependencies.authentication import inject_authentication
-        from .api.dependencies.db import inject_db
-        from .api.dependencies.mail import inject_mail
-        from .api.dependencies.oauth import inject_oauth
-        from .api.dependencies.settings import inject_settings
+    @asynccontextmanager
+    async def _lifespan(self, app: FastAPI) -> AsyncGenerator[None, None]:
+        """https://www.starlette.io/events/#registering-events"""
+        db = DBState(self.settings.sqlalchemy_url)
+        redis = RedisState(self.settings.redis_url)
+        mail = MailState(self.settings.mail)
+        oauth = OAuthState(self.settings.oauth)
+        password = PasswordState()
 
-        inject_authentication(self)
-        inject_db(self)
-        inject_mail(self)
-        inject_oauth(self)
-        inject_settings(self)
-        logger.debug('Dependencies have been injected.')
+        deps = app.dependency_overrides
+        deps[AppSettingsMarker] = self._depend_on_settings
+        deps[CurrentUserMarker] = get_current_user
+        deps[CurrentSuperuserMarker] = get_current_superuser
+        deps[DBSessionInTransactionMarker] = db
+        deps[RedisMarker] = redis
+        deps[MailSenderMarker] = mail
+        deps[OAuthMarker] = oauth
+        deps[PasswordCryptContextMarker] = password
+
+        yield
+
+        await db.shutdown()
+        await redis.shutdown()
+
+    def _depend_on_settings(self) -> AppSettings:
+        return self.settings
+
+
+def get_app(settings: AppSettings) -> FastAPI:
+    return AppBuilder(settings).build()

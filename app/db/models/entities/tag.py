@@ -1,10 +1,9 @@
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
-    BigInteger,
     Column,
-    ForeignKey,
-    String
+    String,
+    UniqueConstraint
 )
 from sqlalchemy.orm import (
     Mapped,
@@ -12,44 +11,41 @@ from sqlalchemy.orm import (
 )
 
 from ..base import Base
-from ..mixins import TimestampMixin
-from ...constants import CASCADE
+from ..mixins import (
+    IDMixin,
+    TimestampMixin
+)
+from ..mixins.user import UserMixin
 
 
 if TYPE_CHECKING:
-    from .user import User
     from .vocab import Vocab
-
 
 __all__ = ['Tag']
 
 
-class Tag(Base, TimestampMixin):
+class Tag(
+    TimestampMixin,
+    UserMixin,
+    IDMixin,
+    Base
+):
     __tablename__ = 'tags'
-
-    id: Mapped[int] = Column(
-        BigInteger,
-        primary_key=True
+    __table_args__ = (
+        UniqueConstraint('title', 'user_id'),
     )
-    tag: Mapped[str] = Column(
+
+    title = Column(
         String(64),
         nullable=False
     )
-    description: Mapped[str | None] = Column(
-        String(256)
-    )
-    user_id: Mapped[int] = Column(
-        ForeignKey('users.id', ondelete=CASCADE),
+    description: Mapped[str] = Column(
+        String(256),
         nullable=False
     )
 
-    user: Mapped['User'] = relationship(
-        'User',
-        back_populates='tags'
-    )
-
     vocabs: Mapped[list['Vocab']] = relationship(
-        'VocabTagsAssociation',
+        'VocabTagAssociation',
         back_populates='tag'
     )
 
@@ -57,7 +53,7 @@ class Tag(Base, TimestampMixin):
         return (
             f'{self.__class__.__name__}('
             f'id={self.id!r}, '
-            f'user_id={self.user_id!r}, '
-            f'tag={self.tag!r}'
+            f'title={self.title!r} ,'
+            f'user_id={self.user_id!r}'
             ')'
         )

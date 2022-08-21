@@ -11,6 +11,11 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      redis:
+        image: redis
+        ports:
+          - 6739:6379
+
       postgres:
         image: postgres
         env:
@@ -43,19 +48,14 @@ jobs:
         run: |
           pipenv install --system --deploy --dev
 
-      - name: Run flake8
+      - name: Run lint
         run: |
-          flake8 app && \
-          flake8 tests
-
-      - name: Run mypy
-        run: |
-          mypy app && \
-          mypy tests --disable-error-code=override --disable-error-code=misc --disable-error-code=no-untyped-def
+          ./scripts/lint.sh
 
       - name: Run tests
         run: |
           pytest
         env:
           APP_ENV: test
-          DB_URI: postgresql://my_vocab_db_user:my_vocab_db_password@localhost:5432/my_vocab
+          DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@localhost:5432/my_vocab
+          REDIS_URL: redis://redis:6379/
