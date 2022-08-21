@@ -2,9 +2,9 @@ name: Testing / Type-checking / Linting
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [main, dev]
   pull_request:
-    branches: [ main, dev ]
+    branches: [main, dev]
 
 jobs:
   setup:
