@@ -1,7 +1,7 @@
-PROJECT_NAME := "my_vocab_backend"
-DC := "docker-compose"
-MIGRATIONS_DIR := "./app/db/migrations/versions"
-ENVIRONMENTS := "prod dev test"
+PROJECT_NAME := my_vocab_backend
+DC := docker-compose
+MIGRATIONS_DIR := ./app/db/migrations/versions
+ENVIRONMENTS := prod dev test
 
 validate-env:  # arguments: env(str=prod|dev|test);
 	echo "${ENVIRONMENTS}" | rg -w --quiet "${env}"; \
