@@ -1,3 +1,5 @@
+#!/bin/bash
+
 flake8 app && \
 flake8 tests && \
 isort -c app && \

@@ -1,7 +1,7 @@
-PROJECT_NAME := "my_vocab_backend"
-DC := "docker-compose"
-MIGRATIONS_DIR := "./app/db/migrations/versions"
-ENVIRONMENTS := "prod dev test"
+PROJECT_NAME := my_vocab_backend
+DC := docker-compose
+MIGRATIONS_DIR := ./app/db/migrations/versions
+ENVIRONMENTS := prod dev test
 
 validate-env:  # arguments: env(str=prod|dev|test);
 	echo "${ENVIRONMENTS}" | rg -w --quiet "${env}"; \
@@ -16,9 +16,9 @@ validate-env:  # arguments: env(str=prod|dev|test);
 		exit 1; \
 	fi
 
-dc:  # arguments: env(str=prod|dev|test);
+dc:  # arguments: env(str=prod|dev|test), args(str, passed to dc-up);
 	make validate-env env="${env}"
-	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" up
+	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" up ${args}
 dc-down:  # arguments: env(str=prod|dev|test);
 	make validate-env env="${env}"
 	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" down -v --rmi local
@@ -31,15 +31,14 @@ dev:
 dev-down:
 	make dc-down env=dev
 test:
-	make dc env=test
+	make dc env="test" args="--abort-on-container-exit --exit-code-from test"
 test-down:
 	make dc-down env=test
 
 lint:
 	./scripts/lint.sh
 local-test:
-	make lint
-	pytest
+	./scripts/full_test.sh
 
 rm-mypy-cache:
 	rm -rf .mypy_cache/
