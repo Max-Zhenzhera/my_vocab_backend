@@ -12,7 +12,7 @@ services:
       POSTGRES_USER: my_vocab_db_user
       POSTGRES_PASSWORD: my_vocab_db_password
       POSTGRES_DB: test_my_vocab
-    restart: on-failure
+    restart: always
 
   pytest:
     build:
