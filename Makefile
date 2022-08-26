@@ -31,15 +31,14 @@ dev:
 dev-down:
 	make dc-down env=dev
 test:
-	make dc env=test
+	make dc env="test" args="--abort-on-container-exit --exit-code-from test"
 test-down:
 	make dc-down env=test
 
 lint:
 	./scripts/lint.sh
 local-test:
-	make lint
-	pytest
+	./scripts/full_test.sh
 
 rm-mypy-cache:
 	rm -rf .mypy_cache/
