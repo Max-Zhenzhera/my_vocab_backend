@@ -35,7 +35,7 @@ services:
       REDIS_URL: redis://redis:6379/
     depends_on:
       - postgres
-    command: alembic upgrade head
+    command: pipenv run alembic upgrade head
     restart: on-failure
 
   gunicorn:

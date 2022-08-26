@@ -14,24 +14,17 @@ services:
       POSTGRES_DB: test_my_vocab
     restart: always
 
-  pytest:
+  test:
     build:
       context: .
       target: test
     env_file:
       - .env.test
     environment:
+      MYPY_CACHE_DIR: /dev/null
       APP_ENV: test
       DB_URL: postgresql://my_vocab_db_user:my_vocab_db_password@postgres:5432/test_my_vocab
       REDIS_URL: redis://redis:6379/
     depends_on:
       - postgres
       - redis
-
-  lint:
-    build:
-      context: .
-      target: test
-    environment:
-      MYPY_CACHE_DIR: /dev/null
-    command: bash ./scripts/lint.sh
