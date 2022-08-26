@@ -1,3 +1,5 @@
+#!/bin/bash
+
 migrations_dir="app/db/migrations/versions"
 for migration_file in ${migrations_dir}/*.py; do
     echo >> "$migration_file"
