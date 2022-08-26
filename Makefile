@@ -16,9 +16,9 @@ validate-env:  # arguments: env(str=prod|dev|test);
 		exit 1; \
 	fi
 
-dc:  # arguments: env(str=prod|dev|test);
+dc:  # arguments: env(str=prod|dev|test), args(str, passed to dc-up);
 	make validate-env env="${env}"
-	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" up
+	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" up ${args}
 dc-down:  # arguments: env(str=prod|dev|test);
 	make validate-env env="${env}"
 	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" down -v --rmi local
