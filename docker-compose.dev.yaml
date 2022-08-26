@@ -12,9 +12,9 @@ services:
     volumes:
       - postgres_volume:/var/lib/postgresql/data/
     environment:
-      - POSTGRES_USER=my_vocab_db_user
-      - POSTGRES_PASSWORD=my_vocab_db_password
-      - POSTGRES_DB=my_vocab
+      POSTGRES_USER: my_vocab_db_user
+      POSTGRES_PASSWORD: my_vocab_db_password
+      POSTGRES_DB: my_vocab
     restart: always
 
   migration:

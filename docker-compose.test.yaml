@@ -9,9 +9,9 @@ services:
   postgres:
     image: postgres
     environment:
-      - POSTGRES_USER=my_vocab_db_user
-      - POSTGRES_PASSWORD=my_vocab_db_password
-      - POSTGRES_DB=test_my_vocab
+      POSTGRES_USER: my_vocab_db_user
+      POSTGRES_PASSWORD: my_vocab_db_password
+      POSTGRES_DB: test_my_vocab
     restart: on-failure
 
   pytest:
