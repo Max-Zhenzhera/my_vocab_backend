@@ -1,5 +1,5 @@
 PROJECT_NAME := my_vocab_backend
-DC := docker-compose
+DC := docker compose
 MIGRATIONS_DIR := ./app/db/migrations/versions
 ENVIRONMENTS := prod dev test
 
@@ -18,10 +18,10 @@ validate-env:  # arguments: env(str=prod|dev|test);
 
 dc:  # arguments: env(str=prod|dev|test), args(str, passed to dc-up);
 	make validate-env env="${env}"
-	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" up ${args}
+	${DC} -f "docker-compose.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" up ${args}
 dc-down:  # arguments: env(str=prod|dev|test);
 	make validate-env env="${env}"
-	${DC} -f "${DC}.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" down -v --rmi local
+	${DC} -f "docker-compose.${env}.yaml" --project-name "${PROJECT_NAME}_${env}" down -v --rmi local
 prod:
 	make dc env=prod
 prod-down:
